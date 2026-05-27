@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Work Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b4fcf'/%3E%3Crect x='8' y='7' width='16' height='3' rx='1.5' fill='white'/%3E%3Crect x='8' y='13' width='12' height='3' rx='1.5' fill='white'/%3E%3Crect x='8' y='19' width='10' height='3' rx='1.5' fill='white'/%3E%3Ccircle cx='24' cy='24' r='6' fill='%2334d399'/%3E%3Cpath d='M21.5 24l1.8 1.8 3.2-3.2' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f0f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    .header { margin-bottom: 28px; }
+    .header h1 { font-size: 1.9rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .header p { color: #666; margin-top: 4px; font-size: 0.95rem; }
+
+    .stats { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px 28px;
+      min-width: 120px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .stat-card .value { font-size: 2rem; font-weight: 700; color: #5b4fcf; }
+    .stat-card .label { font-size: 0.8rem; color: #888; margin-top: 2px; }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      margin-bottom: 24px;
+    }
+    .card h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 18px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #444; }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      border: 1.5px solid #e0e0e8;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus { border-color: #5b4fcf; }
+    .form-group textarea { resize: vertical; min-height: 90px; }
+    .form-full { margin-bottom: 18px; }
+
+    .btn-row { display: flex; gap: 12px; margin-top: 4px; }
+    .btn {
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #5b4fcf; color: #fff; }
+    .btn-secondary { background: #f0f0f5; color: #333; border: 1.5px solid #ddd; }
+
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: #5b4fcf;
+      color: #fff;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { background: #e05252; }
+
+    .filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 20px; }
+    .filters .form-group { min-width: 150px; }
+    .filters .btn-secondary { align-self: flex-end; padding: 9px 18px; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+    thead tr { background: #f5f4ff; }
+    th {
+      text-align: left;
+      padding: 12px 14px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #555;
+      white-space: nowrap;
+    }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: #5b4fcf; }
+    td { padding: 13px 14px; border-bottom: 1px solid #f0f0f5; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .project-badge {
+      display: inline-block;
+      background: #ede9ff;
+      color: #5b4fcf;
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #bbb;
+      font-size: 1.1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .delete-btn:hover { color: #e05252; }
+
+    .empty { text-align: center; color: #aaa; padding: 40px 0; font-size: 0.95rem; }
+
+    .loading { text-align: center; color: #aaa; padding: 24px 0; font-size: 0.9rem; }
+
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+      .stats { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>📋 Daily Work Tracker</h1>
+    <p>Log your tasks and issues by project — every day.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="value" id="stat-total">—</div>
+      <div class="label">Total Entries</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-projects">—</div>
+      <div class="label">Projects</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-today">—</div>
+      <div class="label">Logged Today</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>➕ Log Today's Work</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="entry-date" />
+      </div>
+      <div class="form-group">
+        <label>Project Name</label>
+        <input type="text" id="entry-project" placeholder="e.g. Project Alpha" autocomplete="off" list="project-suggestions" />
+        <datalist id="project-suggestions"></datalist>
+      </div>
+    </div>
+    <div class="form-full form-group">
+      <label>Tasks / Issues Solved</label>
+      <textarea id="entry-tasks" placeholder="Describe the tasks or issues you worked on today..."></textarea>
+    </div>
+    <div class="form-full form-group">
+      <label>Notes (Optional)</label>
+      <input type="text" id="entry-notes" placeholder="Any blockers, comments, or follow-ups..." />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="save-btn" onclick="saveEntry()">Save Entry</button>
+      <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📁 Work Log History</h2>
+    <div class="filters">
+      <div class="form-group">
+        <label>Filter by Project</label>
+        <select id="filter-project" onchange="renderTable()">
+          <option value="">All Projects</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>From Date</label>
+        <input type="date" id="filter-from" onchange="renderTable()" />
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input type="date" id="filter-to" onchange="renderTable()" />
+      </div>
+      <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+    </div>
+    <div class="table-wrap">
+      <div id="loading-msg" class="loading">Loading entries...</div>
+      <table id="log-table" style="display:none">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortBy('date')">Date <span id="sort-date">↓</span></th>
+            <th class="sortable" onclick="sortBy('project')">Project <span id="sort-project"></span></th>
+            <th>Tasks / Issues</th>
+            <th>Notes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+      </table>
+      <div id="empty-msg" class="empty" style="display:none;">No entries yet. Start logging your work above!</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let allEntries = [];
+  let sortField = 'date';
+  let sortDir = -1;
+
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const [y, m, day] = iso.slice(0, 10).split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = isError ? 'error show' : 'show';
+    setTimeout(() => t.className = '', 2800);
+  }
+
+  async function loadEntries() {
+    try {
+      const res = await fetch('/api/entries');
+      if (!res.ok) throw new Error('Failed to load');
+      allEntries = await res.json();
+      document.getElementById('loading-msg').style.display = 'none';
+      document.getElementById('log-table').style.display = 'table';
+      refreshAll();
+    } catch (err) {
+      document.getElementById('loading-msg').textContent = 'Could not connect to server. Is it running?';
+      showToast('Connection error: ' + err.message, true);
+    }
+  }
+
+  async function saveEntry() {
+    const date = document.getElementById('entry-date').value;
+    const project = document.getElementById('entry-project').value.trim();
+    const tasks = document.getElementById('entry-tasks').value.trim();
+    const notes = document.getElementById('entry-notes').value.trim();
+
+    if (!date) { showToast('Please select a date.', true); return; }
+    if (!project) { showToast('Please enter a project name.', true); return; }
+    if (!tasks) { showToast('Please describe the tasks/issues.', true); return; }
+
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      const res = await fetch('/api/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, project, tasks, notes })
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const entry = await res.json();
+      allEntries.unshift(entry);
+      clearForm();
+      refreshAll();
+      showToast('Entry saved!');
+    } catch (err) {
+      showToast('Save failed: ' + err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Entry';
+    }
+  }
+
+  async function deleteEntry(id) {
+    if (!confirm('Delete this entry?')) return;
+    try {
+      const res = await fetch(`/api/entries/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      allEntries = allEntries.filter(e => e.id !== id);
+      refreshAll();
+      showToast('Entry deleted.');
+    } catch (err) {
+      showToast('Delete failed: ' + err.message, true);
+    }
+  }
+
+  function clearForm() {
+    document.getElementById('entry-date').value = todayISO();
+    document.getElementById('entry-project').value = '';
+    document.getElementById('entry-tasks').value = '';
+    document.getElementById('entry-notes').value = '';
+  }
+
+  function clearFilters() {
+    document.getElementById('filter-project').value = '';
+    document.getElementById('filter-from').value = '';
+    document.getElementById('filter-to').value = '';
+    renderTable();
+  }
+
+  function sortBy(field) {
+    if (sortField === field) { sortDir *= -1; }
+    else { sortField = field; sortDir = -1; }
+    document.getElementById('sort-date').textContent = '';
+    document.getElementById('sort-project').textContent = '';
+    document.getElementById(`sort-${field}`).textContent = sortDir === -1 ? '↓' : '↑';
+    renderTable();
+  }
+
+  function refreshAll() {
+    updateStats();
+    updateProjectDropdowns();
+    renderTable();
+  }
+
+  function updateStats() {
+    const today = todayISO();
+    document.getElementById('stat-total').textContent = allEntries.length;
+    document.getElementById('stat-projects').textContent = new Set(allEntries.map(e => e.project)).size;
+    document.getElementById('stat-today').textContent = allEntries.filter(e => e.date && e.date.slice(0,10) === today).length;
+  }
+
+  function updateProjectDropdowns() {
+    const projects = [...new Set(allEntries.map(e => e.project))].sort();
+    const sel = document.getElementById('filter-project');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All Projects</option>';
+    projects.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p;
+      sel.appendChild(o);
+    });
+    sel.value = current;
+
+    const dl = document.getElementById('project-suggestions');
+    dl.innerHTML = '';
+    projects.forEach(p => {
+      const o = document.createElement('option'); o.value = p;
+      dl.appendChild(o);
+    });
+  }
+
+  function renderTable() {
+    const filterProject = document.getElementById('filter-project').value;
+    const filterFrom = document.getElementById('filter-from').value;
+    const filterTo = document.getElementById('filter-to').value;
+
+    let filtered = allEntries.filter(e => {
+      const d = e.date ? e.date.slice(0,10) : '';
+      if (filterProject && e.project !== filterProject) return false;
+      if (filterFrom && d < filterFrom) return false;
+      if (filterTo && d > filterTo) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      const va = a[sortField] || '';
+      const vb = b[sortField] || '';
+      return va < vb ? sortDir : va > vb ? -sortDir : 0;
+    });
+
+    const tbody = document.getElementById('log-body');
+    const empty = document.getElementById('empty-msg');
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      tbody.innerHTML = filtered.map(e => `
+        <tr>
+          <td style="white-space:nowrap">${formatDate(e.date)}</td>
+          <td><span class="project-badge">${esc(e.project)}</span></td>
+          <td>${esc(e.tasks)}</td>
+          <td>${e.notes ? esc(e.notes) : '<span style="color:#ccc">—</span>'}</td>
+          <td><button class="delete-btn" onclick="deleteEntry(${e.id})" title="Delete">✕</button></td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  document.getElementById('entry-date').value = todayISO();
+  loadEntries();
+</script>
+</body>
+</html>
